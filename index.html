@@ -5,14 +5,69 @@
 <title>AI Online</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;display:flex;height:100vh}
+body{
+margin:0;
+font-family:Arial;
+background:radial-gradient(circle at 20% 20%, #1e3a8a, #0f172a 60%);
+color:white;
+display:flex;
+height:100vh;
+overflow:hidden;
+}
+
 #chat{flex:1;padding:20px;overflow:auto}
-.message{margin:10px 0;padding:10px;border-radius:8px;max-width:60%}
+.message{margin:10px 0;padding:10px;border-radius:12px;max-width:65%}
 .user{background:#2563eb;margin-left:auto}
 .ai{background:#334155}
-#inputArea{position:fixed;bottom:0;width:100%;display:flex;background:#1e293b;padding:10px}
-input{flex:1;padding:10px;border:none;border-radius:5px}
-button{margin-left:5px;padding:10px;border:none;border-radius:5px;cursor:pointer}
+
+#inputArea{
+position:fixed;
+bottom:0;
+width:100%;
+display:flex;
+background:#0b1220;
+padding:10px;
+}
+
+input{
+flex:1;
+padding:10px;
+border:none;
+border-radius:8px;
+background:#1e293b;
+color:white;
+}
+
+button{
+margin-left:5px;
+padding:10px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+background:#1e40af;
+color:white;
+}
+
+.typing{
+background:#334155;
+display:inline-block;
+padding:10px;
+border-radius:12px;
+}
+
+.dot{
+display:inline-block;
+animation: jump 1.2s infinite;
+}
+
+.dot:nth-child(2){ animation-delay:0.2s }
+.dot:nth-child(3){ animation-delay:0.4s }
+
+@keyframes jump{
+0%{ transform:translateY(0) }
+50%{ transform:translateY(-6px) }
+100%{ transform:translateY(0) }
+}
 </style>
 </head>
 <body>
@@ -48,11 +103,10 @@ if(!chatId){
   chatId="chat_"+Math.random().toString(36).substr(2,9);
   localStorage.setItem("chatId",chatId);
 }
-alert(chatId)
 
 const chat=document.getElementById("chat");
 
-// 🔥 слушаем сообщения
+// слушаем сообщения
 const q = query(collection(db,"messages"), orderBy("time"));
 onSnapshot(q,(snapshot)=>{
   chat.innerHTML="";
@@ -64,16 +118,33 @@ onSnapshot(q,(snapshot)=>{
   });
 });
 
-// вывод сообщения
 function add(msg){
   const div=document.createElement("div");
   div.className="message "+msg.role;
-  div.textContent=msg.text;
   chat.appendChild(div);
+
+  if(msg.role==="ai"){
+    typeEffect(div, msg.text);
+  }else{
+    div.textContent=msg.text;
+  }
+
   chat.scrollTop=chat.scrollHeight;
 }
 
-// отправка пользователем
+function typeEffect(element, text){
+  let i = 0;
+  element.textContent = "";
+  const interval = setInterval(()=>{
+    element.textContent += text.charAt(i);
+    i++;
+    chat.scrollTop=chat.scrollHeight;
+    if(i >= text.length){
+      clearInterval(interval);
+    }
+  }, 25);
+}
+
 window.send = async function(){
   const input=document.getElementById("msg");
   if(!input.value)return;
@@ -88,23 +159,35 @@ window.send = async function(){
   input.value="";
 }
 
-// режим админа
 window.settings = async function(){
   const code=prompt("Промокод:");
+
   if(code==="AIMODESCR"){
 
-    const chats = prompt("Введите chatId для ответа (или оставьте пустым для текущего):");
-
+    const chats = prompt("Введите chatId для ответа (или пусто = текущий):");
     const targetChat = chats || chatId;
-
     const text=prompt("Ответ ИИ:");
+
     if(text){
-      await addDoc(collection(db,"messages"),{
-        chatId:targetChat,
-        text:text,
-        role:"ai",
-        time:Date.now()
-      });
+
+      // ИИ думает...
+      const thinking = document.createElement("div");
+      thinking.className="typing";
+      thinking.innerHTML='ИИ думает<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>';
+      chat.appendChild(thinking);
+      chat.scrollTop=chat.scrollHeight;
+
+      setTimeout(async ()=>{
+        thinking.remove();
+
+        await addDoc(collection(db,"messages"),{
+          chatId:targetChat,
+          text:text,
+          role:"ai",
+          time:Date.now()
+        });
+
+      },1500);
     }
 
   }else{
